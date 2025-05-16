@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Salary Tax & UIF Calculator</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 40px auto;
+        padding: 20px;
+        background: #f4f4f4;
+        border-radius: 10px;
+      }
+      label,
+      input,
+      button {
+        display: block;
+        width: 100%;
+        margin-bottom: 10px;
+      }
+      input {
+        padding: 8px;
+      }
+      button {
+        padding: 10px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      .results {
+        margin-top: 20px;
+        background: white;
+        padding: 15px;
+        border-radius: 5px;
+      }
+      table {
+        width: 100%;
+        margin-top: 20px;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>SARS PAYE Calculator</h1>
+    <h2>Salary Tax & UIF Calculator</h2>
+
+    <label for="grossInput">Gross Monthly Salary:</label>
+    <input type="number" id="grossInput" placeholder="Enter gross salary" />
+    <button onclick="calculateFromGross()">Calculate From Gross</button>
+
+    <label for="netInput">Net Monthly Salary:</label>
+    <input type="number" id="netInput" placeholder="Enter net salary" />
+    <button onclick="calculateFromNet()">Calculate From Net</button>
+
+    <div class="results" id="results"></div>
+
+    <script>
+      const rebate = 17235;
+      const uifCeiling = 17712;
+
+      const brackets = [
+        { min: 0, max: 237100, rate: 0.18, base: 0 },
+        { min: 237101, max: 370500, rate: 0.26, base: 42678 },
+        { min: 370501, max: 512800, rate: 0.31, base: 77362 },
+        { min: 512801, max: 673000, rate: 0.36, base: 121475 },
+        { min: 673001, max: 857900, rate: 0.39, base: 179147 },
+        { min: 857901, max: 1817000, rate: 0.41, base: 251258 },
+        { min: 1817001, max: Infinity, rate: 0.45, base: 644489 },
+      ];
+
+      function calculateTaxDetails(annualSalary) {
+        for (let b of brackets) {
+          if (annualSalary >= b.min && annualSalary <= b.max) {
+            const taxableAmount = annualSalary - b.min;
+            const taxBeforeRebate = b.base + taxableAmount * b.rate;
+            const taxAfterRebate = Math.max(0, taxBeforeRebate - rebate);
+            return {
+              tax: taxAfterRebate,
+              bracket: `${b.min.toLocaleString()} - ${
+                b.max === Infinity ? "∞" : b.max.toLocaleString()
+              }`,
+              rate: b.rate,
+              base: b.base,
+              taxableAmount: taxableAmount,
+              taxBeforeRebate: taxBeforeRebate,
+            };
+          }
+        }
+        return { tax: 0 };
+      }
+
+      function calculateFromGross() {
+        const gross = parseFloat(document.getElementById("grossInput").value);
+        if (isNaN(gross)) return;
+        showResults(gross);
+      }
+
+      function calculateFromNet() {
+        const netInput = parseFloat(document.getElementById("netInput").value);
+        if (isNaN(netInput)) return;
+
+        let lowerBound = netInput;
+        let upperBound = netInput * 2;
+        let estimatedGross;
+
+        for (let i = 0; i < 100; i++) {
+          estimatedGross = (lowerBound + upperBound) / 2;
+          const annual = estimatedGross * 12;
+          const tax = calculateTaxDetails(annual).tax / 12;
+          const uif = Math.min(estimatedGross, uifCeiling) * 0.01;
+          const calculatedNet = estimatedGross - tax - uif;
+
+          if (Math.abs(calculatedNet - netInput) < 0.01) {
+            showResults(estimatedGross);
+            return;
+          }
+
+          if (calculatedNet > netInput) {
+            upperBound = estimatedGross;
+          } else {
+            lowerBound = estimatedGross;
+          }
+        }
+
+        document.getElementById("results").innerHTML =
+          "Could not estimate gross salary.";
+      }
+
+      function showResults(gross) {
+        const annual = gross * 12;
+        const taxDetails = calculateTaxDetails(annual);
+        const taxMonthly = taxDetails.tax / 12;
+        const uifEmployee = Math.min(gross, uifCeiling) * 0.01;
+        const uifEmployer = Math.min(gross, uifCeiling) * 0.01;
+        const net = gross - taxMonthly - uifEmployee;
+        const monthlyDueToSARS = taxMonthly + uifEmployee + uifEmployer;
+
+        const employerAnnualCost = (gross + uifEmployer) * 12;
+        const effectiveTaxRate = (taxDetails.tax / annual) * 100;
+        const uifContributionTotal = (uifEmployee + uifEmployer) * 12;
+
+        document.getElementById("results").innerHTML = `
+        <strong>Monthly Breakdown:</strong><br>
+        Gross Salary: R${gross.toFixed(2)}<br>
+        Tax Bracket: ${taxDetails.bracket}<br>
+        Base Amount: R${taxDetails.base.toFixed(2)}<br>
+        Taxable Amount: (Annual Gross - Bracket Min) = R${annual.toFixed(
+          2
+        )} - R${(annual - taxDetails.taxableAmount).toFixed(
+          2
+        )} = R${taxDetails.taxableAmount.toFixed(2)}<br>
+        Tax Rate Applied: ${(taxDetails.rate * 100).toFixed(2)}%<br>
+        Tax Before Rebate: R${taxDetails.taxBeforeRebate.toFixed(2)}<br>
+        Rebate: R${rebate.toFixed(2)}<br>
+        PAYE (Annual after rebate): R${taxDetails.tax.toFixed(2)}<br>
+        PAYE (Monthly): R${taxMonthly.toFixed(2)}<br>
+        UIF (Employee): R${uifEmployee.toFixed(2)}<br>
+        UIF (Employer): R${uifEmployer.toFixed(2)}<br>
+        Net Salary: Gross - Tax - UIF(EE) = R${gross.toFixed(
+          2
+        )} - R${taxMonthly.toFixed(2)} - R${uifEmployee.toFixed(
+          2
+        )} = R${net.toFixed(2)}<br>
+        Employer Cost: Gross + UIF(ER) = R${gross.toFixed(
+          2
+        )} + R${uifEmployer.toFixed(2)} = R${(gross + uifEmployer).toFixed(
+          2
+        )}<br>
+        <br>
+        <strong>Total Due to SARS Monthly:</strong> Tax + UIF(EE) + UIF(ER) = R${taxMonthly.toFixed(
+          2
+        )} + R${uifEmployee.toFixed(2)} + R${uifEmployer.toFixed(
+          2
+        )} = R${monthlyDueToSARS.toFixed(2)}<br>
+        <br>
+        <strong>Annual Summary:</strong><br>
+        Annual Gross: R${annual.toFixed(2)}<br>
+        Annual PAYE (before rebate): R${taxDetails.taxBeforeRebate.toFixed(
+          2
+        )}<br>
+        Less Rebate: R${rebate.toFixed(2)}<br>
+        Annual PAYE (after rebate): R${taxDetails.tax.toFixed(2)}<br>
+        Annual UIF (Employee): R${(uifEmployee * 12).toFixed(2)}<br>
+        Annual UIF (Employer): R${(uifEmployer * 12).toFixed(2)}<br>
+        Annual Net Salary: R${(net * 12).toFixed(2)}<br>
+        Employer Annual Cost: R${employerAnnualCost.toFixed(2)}<br>
+        <br>
+        <strong>Effective Tax Rate:</strong> ${effectiveTaxRate.toFixed(2)}%<br>
+        <strong>Total UIF Contributions (Employee + Employer):</strong> R${uifContributionTotal.toFixed(
+          2
+        )}<br>
+
+        <h3>Tax Brackets (2024/25)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Annual Income Range (ZAR)</th>
+              <th>Base Amount</th>
+              <th>Rate Above Threshold</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1 – 237 100</td><td>0</td><td>18%</td></tr>
+            <tr><td>237 101 – 370 500</td><td>42 678</td><td>26%</td></tr>
+            <tr><td>370 501 – 512 800</td><td>77 362</td><td>31%</td></tr>
+            <tr><td>512 801 – 673 000</td><td>121 475</td><td>36%</td></tr>
+            <tr><td>673 001 – 857 900</td><td>179 147</td><td>39%</td></tr>
+            <tr><td>857 901 – 1 817 000</td><td>251 258</td><td>41%</td></tr>
+            <tr><td>1 817 001 and above</td><td>644 489</td><td>45%</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Annual Tax Rebate:</strong> R${rebate.toLocaleString()}</p>
+        <p><small>Note: UIF contributions are limited to a maximum of R177.12 per month for both employee and employer contributions.</small></p>
+      `;
+      }
+    </script>
+  </body>
+</html>
