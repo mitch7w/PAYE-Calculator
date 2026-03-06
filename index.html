@@ -70,32 +70,33 @@
     <div class="results" id="results"></div>
 
     <script>
-      const rebate = 17235;
+      const rebate = 17820;
       const uifCeiling = 17712;
 
       const brackets = [
-        { min: 0, max: 237100, rate: 0.18, base: 0 },
-        { min: 237101, max: 370500, rate: 0.26, base: 42678 },
-        { min: 370501, max: 512800, rate: 0.31, base: 77362 },
-        { min: 512801, max: 673000, rate: 0.36, base: 121475 },
-        { min: 673001, max: 857900, rate: 0.39, base: 179147 },
-        { min: 857901, max: 1817000, rate: 0.41, base: 251258 },
-        { min: 1817001, max: Infinity, rate: 0.45, base: 644489 },
+        { min: 0, max: 245100, threshold: 0, rate: 0.18, base: 0, displayMin: 1 },
+        { min: 245101, max: 383100, threshold: 245100, rate: 0.26, base: 44118 },
+        { min: 383101, max: 530200, threshold: 383100, rate: 0.31, base: 79998 },
+        { min: 530201, max: 695800, threshold: 530200, rate: 0.36, base: 125599 },
+        { min: 695801, max: 887000, threshold: 695800, rate: 0.39, base: 185215 },
+        { min: 887001, max: 1878600, threshold: 887000, rate: 0.41, base: 259783 },
+        { min: 1878601, max: Infinity, threshold: 1878600, rate: 0.45, base: 666339 },
       ];
 
       function calculateTaxDetails(annualSalary) {
         for (let b of brackets) {
           if (annualSalary >= b.min && annualSalary <= b.max) {
-            const taxableAmount = annualSalary - b.min;
+            const taxableAmount = annualSalary - b.threshold;
             const taxBeforeRebate = b.base + taxableAmount * b.rate;
             const taxAfterRebate = Math.max(0, taxBeforeRebate - rebate);
             return {
               tax: taxAfterRebate,
-              bracket: `${b.min.toLocaleString()} - ${
+              bracket: `${(b.displayMin ?? b.min).toLocaleString()} - ${
                 b.max === Infinity ? "∞" : b.max.toLocaleString()
               }`,
               rate: b.rate,
               base: b.base,
+              threshold: b.threshold,
               taxableAmount: taxableAmount,
               taxBeforeRebate: taxBeforeRebate,
             };
@@ -159,9 +160,9 @@
         Gross Salary: R${gross.toFixed(2)}<br>
         Tax Bracket: ${taxDetails.bracket}<br>
         Base Amount: R${taxDetails.base.toFixed(2)}<br>
-        Taxable Amount: (Annual Gross - Bracket Min) = R${annual.toFixed(
+        Taxable Amount Above Threshold: (Annual Gross - Threshold) = R${annual.toFixed(
           2
-        )} - R${(annual - taxDetails.taxableAmount).toFixed(
+        )} - R${taxDetails.threshold.toFixed(
           2
         )} = R${taxDetails.taxableAmount.toFixed(2)}<br>
         Tax Rate Applied: ${(taxDetails.rate * 100).toFixed(2)}%<br>
@@ -205,7 +206,7 @@
           2
         )}<br>
 
-        <h3>Tax Brackets (2024/25)</h3>
+        <h3>Tax Brackets (2026/27)</h3>
         <table>
           <thead>
             <tr>
@@ -215,13 +216,13 @@
             </tr>
           </thead>
           <tbody>
-            <tr><td>1 – 237 100</td><td>0</td><td>18%</td></tr>
-            <tr><td>237 101 – 370 500</td><td>42 678</td><td>26%</td></tr>
-            <tr><td>370 501 – 512 800</td><td>77 362</td><td>31%</td></tr>
-            <tr><td>512 801 – 673 000</td><td>121 475</td><td>36%</td></tr>
-            <tr><td>673 001 – 857 900</td><td>179 147</td><td>39%</td></tr>
-            <tr><td>857 901 – 1 817 000</td><td>251 258</td><td>41%</td></tr>
-            <tr><td>1 817 001 and above</td><td>644 489</td><td>45%</td></tr>
+            <tr><td>1 – 245 100</td><td>0</td><td>18%</td></tr>
+            <tr><td>245 101 – 383 100</td><td>44 118</td><td>26%</td></tr>
+            <tr><td>383 101 – 530 200</td><td>79 998</td><td>31%</td></tr>
+            <tr><td>530 201 – 695 800</td><td>125 599</td><td>36%</td></tr>
+            <tr><td>695 801 – 887 000</td><td>185 215</td><td>39%</td></tr>
+            <tr><td>887 001 – 1 878 600</td><td>259 783</td><td>41%</td></tr>
+            <tr><td>1 878 601 and above</td><td>666 339</td><td>45%</td></tr>
           </tbody>
         </table>
         <p><strong>Annual Tax Rebate:</strong> R${rebate.toLocaleString()}</p>
